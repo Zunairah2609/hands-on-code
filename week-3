@@ -1,1 +1,250 @@
+====================================================================
+EXERCISE 1: CONFIGURING A BASIC SPRING APPLICATION
+====================================================================
 
+--------------------------------------------------------------------
+pom.xml
+--------------------------------------------------------------------
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.library</groupId>
+    <artifactId>LibraryManagement</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
+        <spring.version>5.3.20</spring.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-core</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-beans</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+    </dependencies>
+</project>
+
+--------------------------------------------------------------------
+src/main/resources/applicationContext.xml
+--------------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="bookRepository" class="com.library.repository.BookRepository" />
+
+    <bean id="bookService" class="com.library.service.BookService" />
+
+</beans>
+
+--------------------------------------------------------------------
+com/library/repository/BookRepository.java
+--------------------------------------------------------------------
+package com.library.repository;
+
+public class BookRepository {
+
+    public String findBookById(int id) {
+        return "Book with ID: " + id;
+    }
+}
+
+--------------------------------------------------------------------
+com/library/service/BookService.java
+--------------------------------------------------------------------
+package com.library.service;
+
+import com.library.repository.BookRepository;
+
+public class BookService {
+
+    private BookRepository bookRepository;
+
+    public String getBookDetails(int id) {
+        return bookRepository.findBookById(id);
+    }
+}
+
+--------------------------------------------------------------------
+com/library/LibraryManagementApplication.java
+--------------------------------------------------------------------
+package com.library;
+
+import com.library.service.BookService;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class LibraryManagementApplication {
+
+    public static void main(String[] args) {
+        ApplicationContext context =
+                new ClassPathXmlApplicationContext("applicationContext.xml");
+
+        BookService bookService = (BookService) context.getBean("bookService");
+        System.out.println(bookService.getBookDetails(101));
+    }
+}
+
+
+====================================================================
+EXERCISE 2: IMPLEMENTING DEPENDENCY INJECTION
+====================================================================
+
+--------------------------------------------------------------------
+src/main/resources/applicationContext.xml (updated)
+--------------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="bookRepository" class="com.library.repository.BookRepository" />
+
+    <bean id="bookService" class="com.library.service.BookService">
+        <property name="bookRepository" ref="bookRepository" />
+    </bean>
+
+</beans>
+
+--------------------------------------------------------------------
+com/library/service/BookService.java (updated with setter)
+--------------------------------------------------------------------
+package com.library.service;
+
+import com.library.repository.BookRepository;
+
+public class BookService {
+
+    private BookRepository bookRepository;
+
+    public void setBookRepository(BookRepository bookRepository) {
+        this.bookRepository = bookRepository;
+    }
+
+    public String getBookDetails(int id) {
+        return bookRepository.findBookById(id);
+    }
+}
+
+--------------------------------------------------------------------
+com/library/LibraryManagementApplication.java (test DI)
+--------------------------------------------------------------------
+package com.library;
+
+import com.library.service.BookService;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+public class LibraryManagementApplication {
+
+    public static void main(String[] args) {
+        ApplicationContext context =
+                new ClassPathXmlApplicationContext("applicationContext.xml");
+
+        BookService bookService = (BookService) context.getBean("bookService");
+        System.out.println("Dependency injected result: " + bookService.getBookDetails(202));
+    }
+}
+
+
+====================================================================
+EXERCISE 4: CREATING AND CONFIGURING A MAVEN PROJECT
+====================================================================
+
+--------------------------------------------------------------------
+pom.xml (with Spring Context, AOP, WebMVC, and Compiler Plugin)
+--------------------------------------------------------------------
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.library</groupId>
+    <artifactId>LibraryManagement</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>war</packaging>
+
+    <properties>
+        <spring.version>5.3.20</spring.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-aop</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-webmvc</artifactId>
+            <version>${spring.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+--------------------------------------------------------------------
+Explain the difference between JPA, Hibernate, and Spring Data JPA
+--------------------------------------------------------------------
+JPA (Java Persistence API) is a specification (JSR 338) that defines a
+standard set of rules and interfaces for how Java objects should be
+mapped to and persisted in a relational database. Being a specification,
+JPA itself has no implementation; it only defines the contract.
+
+Hibernate is one of the most popular implementations of the JPA
+specification. It is a full-fledged ORM (Object-Relational Mapping) tool
+that handles the actual work of mapping Java objects to database tables,
+generating SQL, managing transactions, and caching. Hibernate can be used
+either through its own native API or through the JPA interfaces.
+
+Spring Data JPA is a layer built on top of JPA (and, in practice, usually
+on top of Hibernate as the JPA provider). It removes boilerplate code by
+providing repository interfaces (e.g., extending JpaRepository) so
+developers don't need to manually write DAO/CRUD implementations,
+EntityManager calls, or common queries. Spring Data JPA generates the
+implementation at runtime based on method names and annotations.
+
+In short:
+- JPA = specification/standard (the "what")
+- Hibernate = ORM implementation of that specification (the "how")
+- Spring Data JPA = abstraction layer on top of JPA/Hibernate that reduces
+  boilerplate code (the "convenience layer")
+
+References:
+- Difference between Spring Data JPA and Hibernate:
+  https://dzone.com/articles/what-is-the-difference-between-hibernate-and-sprin-1
+- Intro to JPA:
+  https://www.javaworld.com/article/3379043/what-is-jpa-introduction-to-the-java-persistence-api.html
