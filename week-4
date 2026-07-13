@@ -1,1 +1,556 @@
+====================================================================
+HANDS-ON 1: CREATE A SPRING WEB PROJECT USING MAVEN
+====================================================================
 
+--------------------------------------------------------------------
+Setup steps (via https://start.spring.io/)
+--------------------------------------------------------------------
+Group: com.cognizant
+Artifact: spring-learn
+Dependencies: Spring Boot DevTools, Spring Web
+
+Build command (with proxy):
+mvn clean package -Dhttp.proxyHost=proxy.cognizant.com -Dhttp.proxyPort=6050 -Dhttps.proxyHost=proxy.cognizant.com -Dhttps.proxyPort=6050 -Dhttp.proxyUser=123456
+
+Import into Eclipse:
+File > Import > Maven > Existing Maven Projects > Browse > select extracted folder > Finish
+
+--------------------------------------------------------------------
+src/main/java/com/cognizant/springlearn/SpringLearnApplication.java
+--------------------------------------------------------------------
+package com.cognizant.springlearn;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class SpringLearnApplication {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SpringLearnApplication.class);
+
+    public static void main(String[] args) {
+        LOGGER.debug("Starting SpringLearnApplication main() method");
+        SpringApplication.run(SpringLearnApplication.class, args);
+        LOGGER.debug("SpringLearnApplication started successfully");
+    }
+}
+
+--------------------------------------------------------------------
+src/main/resources/application.properties (enable debug logs)
+--------------------------------------------------------------------
+logging.level.com.cognizant.springlearn=DEBUG
+
+--------------------------------------------------------------------
+Project structure walkthrough (for SME discussion)
+--------------------------------------------------------------------
+- src/main/java       -> application source code (controllers, services, main class)
+- src/main/resources  -> configuration files (application.properties, static/, templates/)
+- src/test/java       -> unit/integration test code
+- SpringLearnApplication.java -> entry point; main() calls SpringApplication.run(),
+  which bootstraps the Spring ApplicationContext, performs component scanning,
+  auto-configures beans, and starts the embedded Tomcat server.
+- @SpringBootApplication -> a convenience annotation combining:
+    @Configuration      (marks class as a source of bean definitions)
+    @EnableAutoConfiguration (enables Spring Boot's auto-configuration mechanism)
+    @ComponentScan      (scans the package and sub-packages for components)
+- pom.xml -> defines project metadata, parent (spring-boot-starter-parent),
+  dependencies (spring-boot-starter-web, spring-boot-devtools, spring-boot-starter-test),
+  and the spring-boot-maven-plugin used to build an executable jar.
+  "Dependency Hierarchy" tab in Eclipse shows the full transitive dependency tree
+  pulled in by each starter (e.g. spring-boot-starter-web pulls in Tomcat, Jackson,
+  spring-webmvc, etc.)
+
+
+====================================================================
+HANDS-ON 4: SPRING CORE - LOAD COUNTRY FROM SPRING CONFIGURATION XML
+====================================================================
+
+--------------------------------------------------------------------
+src/main/resources/country.xml
+--------------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="country" class="com.cognizant.springlearn.Country">
+        <property name="code" value="IN" />
+        <property name="name" value="India" />
+    </bean>
+
+</beans>
+
+--------------------------------------------------------------------
+com/cognizant/springlearn/Country.java
+--------------------------------------------------------------------
+package com.cognizant.springlearn;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Country {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(Country.class);
+
+    private String code;
+    private String name;
+
+    public Country() {
+        LOGGER.debug("Inside Country Constructor.");
+    }
+
+    public String getCode() {
+        LOGGER.debug("Inside getCode(), returning code: {}", code);
+        return code;
+    }
+
+    public void setCode(String code) {
+        LOGGER.debug("Inside setCode(), setting code: {}", code);
+        this.code = code;
+    }
+
+    public String getName() {
+        LOGGER.debug("Inside getName(), returning name: {}", name);
+        return name;
+    }
+
+    public void setName(String name) {
+        LOGGER.debug("Inside setName(), setting name: {}", name);
+        this.name = name;
+    }
+
+    @Override
+    public String toString() {
+        return "Country [code=" + code + ", name=" + name + "]";
+    }
+}
+
+--------------------------------------------------------------------
+SpringLearnApplication.java (add displayCountry method)
+--------------------------------------------------------------------
+package com.cognizant.springlearn;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+@SpringBootApplication
+public class SpringLearnApplication {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SpringLearnApplication.class);
+
+    public static void main(String[] args) {
+        LOGGER.debug("Starting SpringLearnApplication main() method");
+        SpringApplication.run(SpringLearnApplication.class, args);
+        displayCountry();
+        LOGGER.debug("SpringLearnApplication started successfully");
+    }
+
+    public static void displayCountry() {
+        ApplicationContext context = new ClassPathXmlApplicationContext("country.xml");
+        Country country = context.getBean("country", Country.class);
+        LOGGER.debug("Country : {}", country.toString());
+    }
+}
+
+--------------------------------------------------------------------
+SME discussion notes
+--------------------------------------------------------------------
+- <bean> tag defines an object managed by the Spring container.
+    - id: unique identifier used to retrieve the bean via getBean()
+    - class: fully qualified class name Spring should instantiate
+- <property> tag injects a value or reference into a bean's setter.
+    - name: matches the property name (Spring calls setXxx())
+    - value: literal value to inject (use "ref" attribute instead of "value"
+      to inject a reference to another bean)
+- ApplicationContext: central interface for accessing the Spring IoC container;
+  provides bean retrieval, resource loading, and event publication.
+- ClassPathXmlApplicationContext: implementation of ApplicationContext that
+  loads bean definitions from an XML file located on the classpath.
+- context.getBean("country", Country.class):
+    1. Spring looks up the bean definition with id "country"
+    2. Instantiates the class using the no-arg constructor
+    3. Calls the corresponding setter for each <property> entry
+    4. Returns the fully configured, cast Country object
+
+
+====================================================================
+HELLO WORLD RESTFUL WEB SERVICE
+====================================================================
+
+--------------------------------------------------------------------
+src/main/resources/application.properties (set port)
+--------------------------------------------------------------------
+server.port=8083
+
+--------------------------------------------------------------------
+com/cognizant/springlearn/controller/HelloController.java
+--------------------------------------------------------------------
+package com.cognizant.springlearn.controller;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HelloController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(HelloController.class);
+
+    @GetMapping("/hello")
+    public String sayHello() {
+        LOGGER.debug("Start sayHello()");
+        String response = "Hello World!!";
+        LOGGER.debug("End sayHello()");
+        return response;
+    }
+}
+
+--------------------------------------------------------------------
+Test URLs
+--------------------------------------------------------------------
+Browser / Postman: http://localhost:8083/hello
+Expected response: Hello World!!
+
+SME discussion notes:
+- Chrome DevTools > Network tab > click the /hello request > Headers tab
+  shows request/response headers (Content-Type, Content-Length, Date, etc.)
+- Postman > Headers tab shows the same response headers after sending the request.
+
+
+====================================================================
+REST - COUNTRY WEB SERVICE
+====================================================================
+
+--------------------------------------------------------------------
+com/cognizant/springlearn/controller/CountryController.java
+--------------------------------------------------------------------
+package com.cognizant.springlearn.controller;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.cognizant.springlearn.Country;
+
+@RestController
+public class CountryController {
+
+    @RequestMapping("/country")
+    public Country getCountryIndia() {
+        ApplicationContext context = new ClassPathXmlApplicationContext("country.xml");
+        Country country = context.getBean("country", Country.class);
+        return country;
+    }
+}
+
+--------------------------------------------------------------------
+Sample Request / Response
+--------------------------------------------------------------------
+Request: http://localhost:8083/country
+
+Response:
+{
+  "code": "IN",
+  "name": "India"
+}
+
+--------------------------------------------------------------------
+SME discussion notes
+--------------------------------------------------------------------
+- Controller method loads the "country" bean from country.xml and returns
+  the Country object directly.
+- Because the class is annotated with @RestController, Spring uses the
+  Jackson HttpMessageConverter to automatically serialize the returned
+  Java object into a JSON response body (via the object's getters).
+- Network tab / Postman Headers tab will show Content-Type: application/json
+  in the response headers.
+
+
+====================================================================
+REST - GET COUNTRY BASED ON COUNTRY CODE
+====================================================================
+
+--------------------------------------------------------------------
+src/main/resources/country.xml (updated with all 4 countries)
+--------------------------------------------------------------------
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="countryUS" class="com.cognizant.springlearn.Country">
+        <property name="code" value="US" />
+        <property name="name" value="United States" />
+    </bean>
+
+    <bean id="countryDE" class="com.cognizant.springlearn.Country">
+        <property name="code" value="DE" />
+        <property name="name" value="Germany" />
+    </bean>
+
+    <bean id="country" class="com.cognizant.springlearn.Country">
+        <property name="code" value="IN" />
+        <property name="name" value="India" />
+    </bean>
+
+    <bean id="countryJP" class="com.cognizant.springlearn.Country">
+        <property name="code" value="JP" />
+        <property name="name" value="Japan" />
+    </bean>
+
+</beans>
+
+--------------------------------------------------------------------
+com/cognizant/springlearn/service/CountryService.java
+--------------------------------------------------------------------
+package com.cognizant.springlearn.service;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.stereotype.Service;
+
+import com.cognizant.springlearn.Country;
+
+@Service
+public class CountryService {
+
+    public Country getCountry(String code) {
+        ApplicationContext context = new ClassPathXmlApplicationContext("country.xml");
+
+        List<Country> countries = Arrays.asList(
+                context.getBean("countryUS", Country.class),
+                context.getBean("countryDE", Country.class),
+                context.getBean("country", Country.class),
+                context.getBean("countryJP", Country.class)
+        );
+
+        Optional<Country> matchedCountry = countries.stream()
+                .filter(c -> c.getCode().equalsIgnoreCase(code))
+                .findFirst();
+
+        return matchedCountry.orElse(null);
+    }
+}
+
+--------------------------------------------------------------------
+com/cognizant/springlearn/controller/CountryController.java (updated)
+--------------------------------------------------------------------
+package com.cognizant.springlearn.controller;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.cognizant.springlearn.Country;
+import com.cognizant.springlearn.service.CountryService;
+
+@RestController
+public class CountryController {
+
+    @Autowired
+    private CountryService countryService;
+
+    @RequestMapping("/country")
+    public Country getCountryIndia() {
+        return countryService.getCountry("IN");
+    }
+
+    @GetMapping("/countries/{code}")
+    public Country getCountry(@PathVariable String code) {
+        return countryService.getCountry(code);
+    }
+}
+
+--------------------------------------------------------------------
+Sample Request / Response
+--------------------------------------------------------------------
+Request: http://localhost:8083/countries/in
+
+Response:
+{
+  "code": "IN",
+  "name": "India"
+}
+
+
+====================================================================
+MICROSERVICES: ACCOUNT AND LOAN
+====================================================================
+
+--------------------------------------------------------------------
+Setup notes
+--------------------------------------------------------------------
+Folder structure:
+D:\<employee_id>\microservices\account
+D:\<employee_id>\microservices\loan
+
+Both projects generated via https://start.spring.io/ with:
+Group: com.cognizant
+Modules: Spring Boot DevTools, Spring Web
+
+Build each with: mvn clean package
+
+--------------------------------------------------------------------
+ACCOUNT MICROSERVICE
+--------------------------------------------------------------------
+
+com/cognizant/account/model/Account.java
+----------------------------------------
+package com.cognizant.account.model;
+
+public class Account {
+
+    private String number;
+    private String type;
+    private double balance;
+
+    public Account(String number, String type, double balance) {
+        this.number = number;
+        this.type = type;
+        this.balance = balance;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public double getBalance() {
+        return balance;
+    }
+}
+
+com/cognizant/account/controller/AccountController.java
+----------------------------------------------------------
+package com.cognizant.account.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.cognizant.account.model.Account;
+
+@RestController
+public class AccountController {
+
+    @GetMapping("/accounts/{number}")
+    public Account getAccount(@PathVariable String number) {
+        return new Account(number, "savings", 234343);
+    }
+}
+
+Sample Request: http://localhost:8080/accounts/00987987973432
+Sample Response:
+{
+  "number": "00987987973432",
+  "type": "savings",
+  "balance": 234343
+}
+
+--------------------------------------------------------------------
+LOAN MICROSERVICE
+--------------------------------------------------------------------
+
+src/main/resources/application.properties (set a different port)
+------------------------------------------------------------------
+server.port=8081
+
+com/cognizant/loan/model/Loan.java
+------------------------------------
+package com.cognizant.loan.model;
+
+public class Loan {
+
+    private String number;
+    private String type;
+    private double loan;
+    private double emi;
+    private int tenure;
+
+    public Loan(String number, String type, double loan, double emi, int tenure) {
+        this.number = number;
+        this.type = type;
+        this.loan = loan;
+        this.emi = emi;
+        this.tenure = tenure;
+    }
+
+    public String getNumber() {
+        return number;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public double getLoan() {
+        return loan;
+    }
+
+    public double getEmi() {
+        return emi;
+    }
+
+    public int getTenure() {
+        return tenure;
+    }
+}
+
+com/cognizant/loan/controller/LoanController.java
+----------------------------------------------------
+package com.cognizant.loan.controller;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.cognizant.loan.model.Loan;
+
+@RestController
+public class LoanController {
+
+    @GetMapping("/loans/{number}")
+    public Loan getLoan(@PathVariable String number) {
+        return new Loan(number, "car", 400000, 3258, 18);
+    }
+}
+
+Sample Request: http://localhost:8081/loans/H00987987972342
+Sample Response:
+{
+  "number": "H00987987972342",
+  "type": "car",
+  "loan": 400000,
+  "emi": 3258,
+  "tenure": 18
+}
+
+--------------------------------------------------------------------
+Notes on running both microservices together
+--------------------------------------------------------------------
+- Both projects default to server.port=8080, so starting the loan service
+  while the account service is already running causes:
+  "Web server failed to start. Port 8080 was already in use."
+- Fix: add server.port=8081 to the loan microservice's application.properties.
+- Both services can then run simultaneously: account on 8080, loan on 8081.
+- In Eclipse, use the monitor icon in the Console view to switch between
+  the two running console outputs.
